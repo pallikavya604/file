@@ -1,0 +1,78 @@
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin
+import os
+
+# 1. Retrieving HTML using Requests
+url = "https://en.wikipedia.org/wiki/Python_(programming_language)"
+
+response = requests.get(
+    url,
+    headers={"User-Agent": "Mozilla/5.0"},
+    timeout=15
+)
+response.raise_for_status()
+html_text = response.text
+
+print("1. HTML CONTENT OF WEBPAGE")
+print(html_text[:2000])
+
+# 2. Parsing HTML using BeautifulSoup
+soup = BeautifulSoup(html_text, "html.parser")
+
+print("\n2. WEBPAGE TITLE")
+print(soup.title.get_text(strip=True))
+
+# 3. Extracting Headings
+print("\n3. HEADINGS")
+for heading in soup.find_all(["h1", "h2", "h3"]):
+    print(heading.get_text(strip=True))
+
+# 4. Extracting Paragraphs
+print("\n4. PARAGRAPHS")
+for paragraph in soup.find_all("p"):
+    text = paragraph.get_text(strip=True)
+    if text:
+        print(text)
+
+# 5. Extracting and Downloading Images
+print("\n5. DOWNLOADING IMAGES")
+
+folder = "Python"
+os.makedirs(folder, exist_ok=True)
+
+count = 1
+
+for image in soup.find_all("img")[2:10]:
+    image_url = urljoin(url, image.get("src", ""))
+
+    if not image_url:
+        continue
+
+    try:
+        img_response = requests.get(
+            image_url,
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=15
+        )
+        img_response.raise_for_status()
+
+        if not img_response.headers.get("Content-Type", "").startswith("image/"):
+            continue
+
+        extension = image_url.split("?")[0].split(".")[-1].lower()
+        if extension not in ["jpg", "jpeg", "png", "webp"]:
+            extension = "jpg"
+
+        filepath = os.path.join(folder, str(count) + "." + extension)
+
+        with open(filepath, "wb") as file:
+            file.write(img_response.content)
+
+        print("Image downloaded:", filepath)
+        count += 1
+
+    except requests.RequestException:
+        continue
+
+print("\nExperiment Completed Successfully!")
